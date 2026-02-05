@@ -1,0 +1,95 @@
+app/watch/[slug]/page.tsx
+"use client";
+
+import { useEffect, useRef } from "react";
+import videojs from "video.js";
+import "video.js/dist/video-js.css";
+
+interface VideoPlayerProps {
+  src: string;
+  poster?: string;
+  title?: string;
+  className?: string;
+}
+
+export function VideoPlayer({ src, poster, title, className = "" }: VideoPlayerProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const playerRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!videoRef.current) return;
+
+    const videoElement = videoRef.current;
+
+    if (!playerRef.current) {
+      playerRef.current = videojs(videoElement, {
+        controls: true,
+        responsive: true,
+        fluid: true,
+        poster,
+        autoplay: false,
+        preload: "auto",
+      });
+
+      playerRef.current.src({
+        src,
+        type: src.includes(".mpd") ? "application/dash+xml" : "application/x-mpegURL",
+      });
+    }
+
+    return () => {
+      if (playerRef.current && !playerRef.current.isDisposed()) {
+        playerRef.current.dispose();
+      }
+    };
+  }, [src, poster]);
+
+  return (
+    <div data-vjs-player className={className}>
+      <video
+        ref={videoRef}
+        className="video-js vjs-big-play-centered"
+        playsInline
+        title={title || "Video Player"}
+      />
+    </div>
+  );
+}
+components/video/VideoPlayer.tsx
+import { VideoPlayer } from "@/components/video/VideoPlayer";
+import { notFound } from "next/navigation";
+
+// Demo data (replace with real database later)
+const mockVideo = {
+  id: "demo-1",
+  title: "Sample Streaming Video",
+  description: "Test HLS stream – public demo source.",
+  hlsUrl: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
+  poster: "https://bitdash-a.akamaihd.net/content/sintel/poster.jpg",
+};
+
+export default async function WatchPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+
+  const video = mockVideo; // Later: await prisma.video.findUnique(...)
+
+  if (!video) notFound();
+
+  return (
+    <div className="min-h-screen bg-black text-white">
+      <div className="mx-auto max-w-7xl px-4 pt-8">
+        <h1 className="mb-4 text-3xl font-bold">{video.title}</h1>
+        <p className="mb-8 text-gray-400">{video.description}</p>
+
+        <div className="aspect-video w-full rounded-xl overflow-hidden bg-black">
+          <VideoPlayer
+            src={video.hlsUrl}
+            poster={video.poster}
+            title={video.title}
+            className="w-full h-full"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
